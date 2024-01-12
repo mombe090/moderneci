@@ -17,7 +17,7 @@ services:
       - sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
 
   db:
-    image: postgres:alpine3.19
+    image: postgres:14-alpine3.19
     networks:
       - sonarnet
     environment:
