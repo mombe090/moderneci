@@ -133,12 +133,95 @@ Le choix de l'application est volontairement simple afin de se concentrer sur la
         - On récupère le fichier jar du conteneur de build précedant build et le monte dans le dossier /app du conteneur jdk.
         - On définit le point d'entrée de l'image comme étant le fichier jar de l'application.
         - On publie l'image sur dockerhub avec nos crédentiales.
-      - Signature de l'image avec Cosign. A COMPLETER
-  - scan de vulnérabilité avec Grype
+      - Signature de l'image avec Cosign:
+          - En signant nos images, nous nous assurons de l'identité de l'image et de son intégrité avant de la déployer dans un environnement de production.
+      
+      - scan de vulnérabilité avec Grype:
+      - 
 - Installation d'un cluster kubernetes avec Rancher Desktop/Minikube/Kind/K3s
   - Pour le déploiment de l'application, nous allons utiliser un cluster kubernetes en local.
   - Il existe plusieurs solutions aujourd'hui, personnellement j'utilise Rancher Desktop qui est très performant et permet de choisir facilement les configs de la VM, version de k8s etc avec un UI très explicite.
 - Définition des manifests kubernetes pour le deployment de l'application avec (Helm)
-- Définition des manifests ArgoCD pour le déploiement de l'application avec (Helm)
-- Monitoring du deployment avec ArgoUI
-- Monitoring de la sécurité avec Anchore
+  - Définition des manifests Kyverno pour la gestion des policies de sécurité (Helm):
+    - Il existe aujourd'hui plusieurs outils de gestion des politiques de sécurités dans k8s (OPA, Kyverno, Gatekeeper etc...), nous allons utiliser Kyverno pour ce tutoriel.  
+    - [kyverno](https://kyverno.io/) est un outil qui permet de gérer les policies de sécurité dans kubernetes comme par example :
+      - s'assurer que les images déployées sont ceux qu'on a validés et signés avec Cosign.
+      - que les conteneurs déployés ont des limites de ressources.
+      - que les conteneurs déployés ont des probes de santé.
+      - que les conteneurs déployés sont rootless.
+      - s'assurer que les registries utilisés sont connus, sécurisés (tls, auth etc...)
+    - Installer kyverno dans votre cluster kubernetes en suivant ce [tutoriel](https://kyverno.io/docs/installation/).
+      - Installation avec helm:
+      - ```bash
+        helmChart repo add kyverno https://kyverno.github.io/kyverno/
+        helmChart repo update
+        helmChart install kyverno kyverno/kyverno --namespace kyverno --create-namespace --wait
+        
+        
+        NAME: kyverno
+        LAST DEPLOYED: Tue Jan 16 11:48:58 2024
+        NAMESPACE: kyverno
+        STATUS: deployed
+        REVISION: 1
+        NOTES:
+        Chart version: 3.1.3
+        Kyverno version: v1.11.3
+        
+
+        Thank you for installing kyverno! Your release is named kyverno.
+
+        The following components have been installed in your cluster:
+        - CRDs
+        - Admission controller
+        - Reports controller
+        - Cleanup controller
+        - Background controller
+        ```
+      - Définition des politiques de base :
+          - ```bash
+            kubectl create -f https://raw.githubusercontent.com/kyverno/policies/main/best-practices/require-ro-rootfs/require-ro-rootfs.yaml
+            kubectl create -f https://raw.githubusercontent.com/kyverno/policies/main/best-practices/require-pod-requests-limits/require-pod-requests-limits.yaml
+            kubectl create -f https://raw.githubusercontent.com/kyverno/policies/main/argo/application-field-validation/application-field-validation.yaml
+            kubectl create -f https://raw.githubusercontent.com/kyverno/policies/main/pod-security/restricted/require-run-as-non-root-user/require-run-as-non-root-user.yaml
+            kubectl create -f https://raw.githubusercontent.com/kyverno/policies/main/best-practices/require-labels/require-labels.yaml
+            ``` 
+          - Pour voir les politiques définies:
+            - ```bash
+              kubectl get clusterpolicies.kyverno.io
+              ```
+  - Définition des manifests ArgoCD pour le déploiement de l'application avec (Helm):
+    - ArgoCD est un outil (**GITOPS**) qui permet de gérer le cycle de vie d'une application dans kubernetes en se basant sur les fonctionnalités de git (pull-request/merge-request) ainsi que d'un démons qui monitore les branches git concernés puis les appliques vers la cible (clusters/serveurs etc...).
+    - FluxCD est un autre outil qui permet de faire la même chose, la différence qui a fait pencher la balance vers ArgoCD c'est son UI qui nous permet de visualiser les applications déployées ainsi que leur état.
+    - Installer ArgoCD dans votre cluster kubernetes en suivant ce [tutoriel](https://argoproj.github.io/argo-cd:
+      - Installation avec helm:
+        - ```bash
+          helmChart repo add argo https://argoproj.github.io/argo-helm
+          helmChart repo update
+          helmChart install argocd argo/argo-cd --namespace argocd --create-namespace --wait
+          ```
+        - Connexion via la UI:
+          - ```bash
+            kubectl port-forward svc/argocd-server -n argocd 8080:443
+            ```
+          - Ouvrez votre navigateur et allez sur l'url suivante: https://localhost:8080
+        - Connexion via le CLI:
+             - Si vous n'avez argocd cli installé sur votre machine, vous pouvez l'installer en suivant ce [tutoriel](https://argoproj.github.io/argo-cd/cli_installation/).
+          - Récuperation du mot de passe par défaut de l'administrateur :
+          - ```bash
+            kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+            ```
+  - Définition des manifests de déploiement de l'application avec (Helm)
+     - Pour déployer l'application dans kubernetes, nous allons utiliser Helm qui est un outil qui permet de définir des templates de déploiement d'application dans kubernetes.
+     - Nous aurons besoin des objects k8s suivants:
+       - Deployment
+       - Service
+       - Ingress
+       - ConfigMap
+       - Secret
+       - HorizontalPodAutoscaler
+       - ServiceAccount
+       - voir ici pour plus de détails sur le concept de k8s : https://kubernetes.io/docs/concepts/
+  - Monitoring du deployment avec ArgoUI
+  - Monitoring de la sécurité avec Anchore
+
+Note: pour utiliser un registry local : https://docs.dagger.io/252029/load-images-local-docker-engine/#approach-2-use-a-local-registry-server

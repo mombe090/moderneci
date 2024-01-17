@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+spec:
+  project: moderneci
+  source:
+    repoURL: https://github.com/mombe090/moderneci.git
+    targetRevision: HEAD
+    path: helmChart
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-maven
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

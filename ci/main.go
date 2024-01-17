@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"dagger.io/dagger"
 )
@@ -62,22 +63,36 @@ func main() {
 		WithWorkdir("/app")
 
 	// test, scan CVE, build and package application as JAR
-	build := app.WithExec([]string{"mvn", "clean", "install"})
+	mavenBuilder := app.WithExec([]string{"mvn", "clean", "install"})
 
-	// use eclipse alpine container as base
 	// copy JAR files from builder
-	deploy := client.Container().
-		From("eclipse-temurin:17-alpine").
-		WithDirectory("/app", build.Directory("./target")).
-		WithEntrypoint([]string{"java", "-jar", "/app/app.jar"})
+	imageBuilder := client.Container().
+		From("amazoncorretto:17.0.9").
+		WithDirectory("/app", mavenBuilder.Directory("./target")).
+		WithEntrypoint([]string{"java", "-jar", "/app/app.jar", "--spring.config.location=file:/app/config/application.yaml"})
 
-	// publish image to registry
-	fmt.Println("Pusblishing image to Docker Hub")
-	_, err = deploy.WithRegistryAuth("docker.io", username, password).
-		Publish(ctx, fmt.Sprintf("%s/app-maven", username))
-	if err != nil {
-		panic(err)
+	// create a container to install Grype
+	grypeInstaller := client.Container().
+		From("golang:1.21.6").
+		WithExec([]string{"go", "install", "github.com/anchore/grype"})
+
+	// scan the image with Grype
+	/*grypeRun, err := grypeInstaller.WithExec([]string{"grype", "--fail-on", "critical", "--scope", "image", "--input", "docker://localhost:5000/mombe090/app-maven:1.0.1"})
+
+	// parse the output to count the number of critical vulnerabilities
+	criticalCount := strings.Count(scanOutput, "Critical")*/
+
+	// if the number of critical vulnerabilities is more than 5, fail the process
+	if criticalCount > 5 {
+		panic("More than 5 critical vulnerabilities found")
 	}
+
+	addr, err := imageBuilder.WithRegistryAuth("localhost:5000", username, password).
+		Publish(ctx, fmt.Sprintf("localhost:5000/mombe090/app-maven:1.0.1"))
+
+	fmt.Println("Published at:", addr)
+
+	// ...
 }
 
 func hcpCloudVaultSecretLoader() {
