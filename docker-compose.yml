@@ -15,6 +15,15 @@ services:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_extensions:/opt/sonarqube/extensions
       - sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
+  jenkins:
+    image: jenkins/jenkins:jdk17
+    ports:
+      - "9090:8080"
+      - "50000:50000"
+    networks:
+      - sonarnet
+    volumes:
+      - jenkins_home:/var/jenkins_home
 
   db:
     image: postgres:14-alpine3.19
@@ -38,3 +47,4 @@ volumes:
   sonarqube_bundled-plugins:
   postgresql:
   postgresql_data:
+  jenkins_home:

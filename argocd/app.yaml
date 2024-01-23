@@ -1,13 +1,13 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: my-app
+  name: modernci-app
   namespace: argocd
 spec:
   project: moderneci
   source:
     repoURL: https://github.com/mombe090/moderneci.git
-    targetRevision: HEAD
+    targetRevision: main
     path: helmChart
     helm:
       valueFiles:

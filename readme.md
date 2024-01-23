@@ -212,7 +212,7 @@ Le choix de l'application est volontairement simple afin de se concentrer sur la
             ```
   - Définition des manifests de déploiement de l'application avec (Helm)
      - Pour déployer l'application dans kubernetes, nous allons utiliser Helm qui est un outil qui permet de définir des templates de déploiement d'application dans kubernetes.
-     - Nous aurons besoin des objects k8s suivants:
+     - Nous aurons besoin des objects k8s suivants :
        - Deployment
        - Service
        - Ingress
