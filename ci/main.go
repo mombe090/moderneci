@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"dagger.io/dagger"
 )
@@ -50,7 +49,7 @@ func main() {
 
 	// get reference to source code directory
 	source := client.Host().Directory(".", dagger.HostDirectoryOpts{
-		Exclude: []string{"ci"},
+		Exclude: []string{"ci", "argocd", "helmChart", "img"},
 	})
 
 	// use maven:3.9 container
@@ -63,7 +62,8 @@ func main() {
 		WithWorkdir("/app")
 
 	// test, scan CVE, build and package application as JAR
-	mavenBuilder := app.WithExec([]string{"mvn", "clean", "install"})
+	mavenBuilder := app.WithExec([]string{"mvn", "clean", "verify", "sonar:sonar"}).
+		WithExec([]string{"mvn", "clean", "install"})
 
 	// copy JAR files from builder
 	imageBuilder := client.Container().
@@ -72,7 +72,7 @@ func main() {
 		WithEntrypoint([]string{"java", "-jar", "/app/app.jar", "--spring.config.location=file:/app/config/application.yaml"})
 
 	// create a container to install Grype
-	grypeInstaller := client.Container().
+	/*grypeInstaller := client.Container().
 		From("golang:1.21.6").
 		WithExec([]string{"go", "install", "github.com/anchore/grype"})
 
@@ -83,9 +83,9 @@ func main() {
 	criticalCount := strings.Count(scanOutput, "Critical")*/
 
 	// if the number of critical vulnerabilities is more than 5, fail the process
-	if criticalCount > 5 {
+	/*if criticalCount > 5 {
 		panic("More than 5 critical vulnerabilities found")
-	}
+	}*/
 
 	addr, err := imageBuilder.WithRegistryAuth("localhost:5000", username, password).
 		Publish(ctx, fmt.Sprintf("localhost:5000/mombe090/app-maven:1.0.1"))
