@@ -56,7 +56,7 @@ func main() {
 	// mount cache and source code volumes
 	// set working directory
 	app := client.Container().
-		From("maven:3.9-eclipse-temurin-17").
+		From("maven:3.9.6-amazoncorretto-21-al2023").
 		WithMountedCache("~/.m2", mavenCache).
 		WithMountedDirectory("/app", source).
 		WithWorkdir("/app")
