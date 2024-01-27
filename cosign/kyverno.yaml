@@ -1,0 +1,29 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: cosign
+spec:
+  validationFailureAction: enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: check-image
+      match:
+        any:
+        - resources:
+            kinds:
+            - Pod
+            - Deployment
+      verifyImages:
+      - imageReferences:
+        - "docker.io/mombe090/myapp:*"
+        attestors:
+        - count: 1
+          entries:
+          - keys:
+              publicKeys: |-
+                -----BEGIN PUBLIC KEY-----
+                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcD5nlQgKPhN5B/UcLN9jXrAEh2eG
+                KXhzdT1qBuBhTzkTQYagV9+0wF3ILsfY9zrZw8qdmE2mryaN7drG0rciFQ==
+                -----END PUBLIC KEY-----

@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: mombe090/spring-boot-daggerci
+  repository: mombe090/myapp
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "1.0.0"
+  tag: "main-2024_01_26_18_41_55"
 
 imagePullSecrets: []
 nameOverride: ""

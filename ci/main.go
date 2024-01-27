@@ -9,6 +9,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
+	"time"
 
 	"dagger.io/dagger"
 )
@@ -29,7 +32,7 @@ type Response struct {
 }
 
 func main() {
-	hcpCloudVaultSecretLoader()
+	hcpCloudVaultSecretLoader("ad832508-eed1-4732-9dbc-ea7dd3c363f6", "c37cc2a3-545a-4f30-8578-360572a26a98", "dagger-env")
 	fmt.Println("HCP Cloud Vault secrets loaded ")
 
 	// initialize Dagger client
@@ -39,6 +42,7 @@ func main() {
 		panic(err)
 	}
 	defer client.Close()
+
 
 	// set registry password as secret for Dagger pipeline
 	password := client.SetSecret("password", os.Getenv("REGISTRY_PASSWORD"))
@@ -52,50 +56,82 @@ func main() {
 		Exclude: []string{"ci", "argocd", "helmChart", "img"},
 	})
 
+	
 	// use maven:3.9 container
 	// mount cache and source code volumes
 	// set working directory
 	app := client.Container().
-		From("maven:3.9.6-amazoncorretto-21-al2023").
+		From("maven:3.9-eclipse-temurin-17").
 		WithMountedCache("~/.m2", mavenCache).
+		WithMountedCache("/root/.m2", mavenCache).
 		WithMountedDirectory("/app", source).
 		WithWorkdir("/app")
 
 	// test, scan CVE, build and package application as JAR
-	mavenBuilder := app.WithExec([]string{"mvn", "clean", "verify", "sonar:sonar"}).
-		WithExec([]string{"mvn", "clean", "install"})
+	mavenBuilder := app.WithExec([]string{"mvn", "clean", "install", "sonar:sonar", "-Dsonar.projectKey=app-maven", "-Dsonar.host.url=https://sonarcloud.io", "-Dsonar.token=" + os.Getenv("SONAR_TOKEN")})
 
-	// copy JAR files from builder
-	imageBuilder := client.Container().
-		From("amazoncorretto:17.0.9").
+	// copy JAR files from builderj
+	deploy := client.Container().
+		From("eclipse-temurin:17-alpine").
 		WithDirectory("/app", mavenBuilder.Directory("./target")).
 		WithEntrypoint([]string{"java", "-jar", "/app/app.jar", "--spring.config.location=file:/app/config/application.yaml"})
 
-	// create a container to install Grype
-	/*grypeInstaller := client.Container().
-		From("golang:1.21.6").
-		WithExec([]string{"go", "install", "github.com/anchore/grype"})
 
-	// scan the image with Grype
-	/*grypeRun, err := grypeInstaller.WithExec([]string{"grype", "--fail-on", "critical", "--scope", "image", "--input", "docker://localhost:5000/mombe090/app-maven:1.0.1"})
+	
+	// publish image to registry
+	address, err := deploy.WithRegistryAuth("docker.io", username, password).
+		Publish(ctx, fmt.Sprintf("%s/myapp:%s", username, getImagesTag()))
+	if err != nil {
+		panic(err)
+	} 
+	
+	// print image address
+	fmt.Println("Image published at:", address)
 
-	// parse the output to count the number of critical vulnerabilities
-	criticalCount := strings.Count(scanOutput, "Critical")*/
+	client.Container().
+		From("anchore/grype:latest").
+		WithExec([]string{address, "--fail-on", "critical"}).
+		Stdout(ctx)
 
-	// if the number of critical vulnerabilities is more than 5, fail the process
-	/*if criticalCount > 5 {
-		panic("More than 5 critical vulnerabilities found")
-	}*/
-
-	addr, err := imageBuilder.WithRegistryAuth("localhost:5000", username, password).
-		Publish(ctx, fmt.Sprintf("localhost:5000/mombe090/app-maven:1.0.1"))
-
-	fmt.Println("Published at:", addr)
-
-	// ...
+	signImage(ctx, client, source, password, username, address)
+	
 }
 
-func hcpCloudVaultSecretLoader() {
+func signImage(ctx context.Context, client *dagger.Client, source *dagger.Directory, password *dagger.Secret, username string, address string) {
+	cosignKey := client.SetSecret("cosign-key", os.Getenv("COSIGN_KEY"))
+	cosignKeyPassword := client.SetSecret("cosign-key-password", os.Getenv("COSIGN_PASSWORD"))
+
+	cosignContainer := client.Container().
+		From("golang:1.21.6").
+		WithDirectory("/app", source).
+		WithMountedCache("/go/pkg/mod", client.CacheVolume("go-mod-121")).
+		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").
+		WithMountedCache("/go/build-cache", client.CacheVolume("go-build-121")).
+		WithEnvVariable("GOCACHE", "/go/build-cache")
+
+	cosignContainer.
+		WithSecretVariable("COSIGN_PASSWORD", cosignKeyPassword).
+		WithSecretVariable("COSIGN_KEY", cosignKey).
+		WithSecretVariable("REGISTRY_PASSWORD", password).
+		WithExec([]string{"sh", "-c", fmt.Sprintf(`
+			export GPG_TTY=$(tty)
+			git clone https://github.com/sigstore/cosign.git
+			cd cosign
+			echo $COSIGN_KEY | base64 -d > cosign.key
+			go install ./cmd/cosign
+			echo $REGISTRY_PASSWORD | $(go env GOPATH)/bin/cosign login --username %s --password-stdin docker.io
+			$(go env GOPATH)/bin/cosign sign --key cosign.key %s -y
+			exit_status=$?
+			if [ $exit_status -eq 0 ]; then
+				echo "Command succeeded"
+			else
+				echo "Command failed with exit status $exit_status"
+			fi
+			`, username, address)}).
+		Stderr(ctx)
+}
+
+func hcpCloudVaultSecretLoader(hcpOrgID string, hcpProjID string, appName string) {
 	data := map[string]string{
 		"audience":      "https://api.hashicorp.cloud",
 		"grant_type":    "client_credentials",
@@ -114,10 +150,6 @@ func hcpCloudVaultSecretLoader() {
 	body, _ := ioutil.ReadAll(resp.Body)
 	tokenResponse := TokenResponse{}
 	json.Unmarshal(body, &tokenResponse)
-
-	hcpOrgID := os.Getenv("HCP_ORG_ID")
-	hcpProjID := os.Getenv("HCP_PROJ_ID")
-	appName := os.Getenv("APP_NAME")
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.cloud.hashicorp.com/secrets/2023-06-13/organizations/%s/projects/%s/apps/%s/open", hcpOrgID, hcpProjID, appName), nil)
 	if err != nil {
@@ -146,4 +178,24 @@ func hcpCloudVaultSecretLoader() {
 			log.Fatalf("Failed to set environment variable: %v", err)
 		}
 	}
+}
+
+func getImagesTag() string {
+	// Get current branch name
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+	branch := strings.TrimSpace(string(output))
+
+	//year_month_day_hour_minute_second
+	
+
+	timestamp := time.Now().Format("2006_01_02_15_04_05")
+
+	// Generate image tag
+	imageTag := fmt.Sprintf("%s_%s", branch, timestamp)
+
+	return imageTag
 }
