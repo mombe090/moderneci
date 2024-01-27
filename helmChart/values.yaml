@@ -8,7 +8,7 @@ image:
   repository: mombe090/myapp
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "main_2024_01_26_19_38_05"
+  tag: "main_2024_01_26_20_16_50"
 
 imagePullSecrets: []
 nameOverride: ""

@@ -74,7 +74,7 @@ func main() {
 	deploy := client.Container().
 		From("eclipse-temurin:17-alpine").
 		WithDirectory("/app", mavenBuilder.Directory("./target")).
-		WithEntrypoint([]string{"java", "-jar", "/app/app.jar", "--spring.config.location=file:/app/config/application.yaml"})
+		WithEntrypoint([]string{"java", "-jar", "/app/app.jar"})
 
 
 	
