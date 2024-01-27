@@ -51,7 +51,8 @@ Le choix de l'application est volontairement simple afin de se concentrer sur la
   Pour valider la qualité du code et aider les développeurs à améliorer leur code, nous allons utiliser les outils:
   - SonrLint : (plugin VSCode ou intellij) qui permet aux devs de voir les erreurs et les warnings directement sur son IDE.
   - SonarQube : un serveur qui permet de stocker les résultats des analyses de code et de les visualiser ainsi que de fail la pipeline si la qualité du code ne respecte pas les règles définies.
-    - Il y a un fichier docker-compose.yml qui permet de déployer SonarQube en local à la ricine du projet.
+    - Nous allons utiliser une version d'essaie de SonarQube qui est disponible sur le cloud de sonarqube : https://sonarcloud.io/, vous pouvez aussi installer sonarqube sur votre machine avec le docker-compose présent dans le projet.
+    - 
 - Vérification des vulnérabilités connues dans les librairies utilisées par l'application :
   - OWASP Dependency Check : un outil qui permet de scanner les librairies utilisées par l'application.
 - Définition de la pipeline CI avec Dagger SDK (go) en local:

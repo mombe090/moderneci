@@ -94,7 +94,7 @@
 				<version>3.10.0.2594</version>
 				<executions>
 					<execution>
-						<phase>package</phase>
+						<phase>install</phase>
 						<goals>
 							<goal>sonar</goal>
 						</goals>
