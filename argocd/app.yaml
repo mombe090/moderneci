@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/mombe090/moderneci.git
     targetRevision: main
-    path: helmChart
+    path: helmChart/moderneci
     helm:
       valueFiles:
         - values.yaml
