@@ -189,9 +189,6 @@ func getImagesTag() string {
 	}
 	branch := strings.TrimSpace(string(output))
 
-	//year_month_day_hour_minute_second
-	
-
 	timestamp := time.Now().Format("2006_01_02_15_04_05")
 
 	// Generate image tag

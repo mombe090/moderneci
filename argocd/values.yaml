@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: mombe090/app-maven
+  repository: mombe090/myapp
   pullPolicy: Always
-  tag: "1.0.0"
+  tag: "main_2024_01_31_16_26_47"
   # ... rest of your values.yaml content ...

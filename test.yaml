@@ -1,0 +1,154 @@
+---
+# Source: moderneci/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: test-moderneci
+  labels:
+    helm.sh/chart: moderneci-0.0.1
+    app.kubernetes.io/name: moderneci
+    app.kubernetes.io/instance: test
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: moderneci/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: test
+  labels:
+    helm.sh/chart: moderneci-0.0.1
+    app.kubernetes.io/name: moderneci
+    app.kubernetes.io/instance: test
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  application.yml: |-
+    management:
+      metrics:
+        tags:
+          application: test-test
+      endpoints:
+        web:
+          exposure:
+            include: health,info,prometheus,caches,metrics
+          health:
+            probes:
+              enabled: true
+    
+    spring:
+      application:
+        name: test
+---
+# Source: moderneci/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-moderneci
+  labels:
+    helm.sh/chart: moderneci-0.0.1
+    app.kubernetes.io/name: moderneci
+    app.kubernetes.io/instance: test
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: moderneci
+    app.kubernetes.io/instance: test
+---
+# Source: moderneci/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-moderneci
+  labels:
+    helm.sh/chart: moderneci-0.0.1
+    app.kubernetes.io/name: moderneci
+    app.kubernetes.io/instance: test
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: moderneci
+      app.kubernetes.io/instance: test
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: moderneci-0.0.1
+        app.kubernetes.io/name: moderneci
+        app.kubernetes.io/instance: test
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: test-moderneci
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: moderneci
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "mombe090/myapp:main_2024_01_26_20_16_50"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          resources:
+            limits:
+              cpu: 250m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: config-volume
+              mountPath: /app/config
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+        - name: config-volume
+          configMap:
+            name: test-configmap
+---
+# Source: moderneci/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "test-moderneci-test-connection"
+  labels:
+    helm.sh/chart: moderneci-0.0.1
+    app.kubernetes.io/name: moderneci
+    app.kubernetes.io/instance: test
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['test-moderneci:8080']
+  restartPolicy: Never

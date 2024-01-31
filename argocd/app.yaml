@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: modernci-app
+  name: moderneci-app
   namespace: argocd
 spec:
   project: moderneci
@@ -19,6 +19,4 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      syncOptions:
-        - "--timeout=1m"
       
