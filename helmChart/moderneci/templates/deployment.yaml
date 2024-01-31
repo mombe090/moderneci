@@ -40,14 +40,6 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /actuator/health
-              port: 8080
-          readinessProbe:
-            httpGet:
-              path: /actuator/health
-              port: 8080
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
