@@ -72,6 +72,8 @@ func main() {
 }
 
 func appBuilder(client *dagger.Client, mavenCache *dagger.CacheVolume, source *dagger.Directory) *dagger.Container {
+	var mavenBuilder *dagger.Container
+
 	app := client.Container().
 		From("maven:3.9-eclipse-temurin-17").
 		WithMountedCache("~/.m2", mavenCache).
@@ -79,7 +81,16 @@ func appBuilder(client *dagger.Client, mavenCache *dagger.CacheVolume, source *d
 		WithMountedDirectory("/app", source).
 		WithWorkdir("/app")
 
-	mavenBuilder := app.WithExec([]string{"mvn", "clean", "install", "sonar:sonar", "-Dsonar.projectKey=app-maven", "-Dsonar.host.url=https://sonarcloud.io", "-Dsonar.token=" + os.Getenv("SONAR_TOKEN")})
+	if checkEnv() {
+		mavenBuilder = app.WithExec([]string{"mvn", "clean", "install",
+			"sonar:sonar",
+			"-Dsonar.host.url=https://sonarcloud.io",
+			"-Dsonar.token=" + os.Getenv("SONAR_TOKEN"),
+			"-Ddependency-check.skip=true",
+		})
+	} else {
+		mavenBuilder = app.WithExec([]string{"mvn", "clean", "install"})
+	}
 
 	// copy JAR files from builderj
 	return client.Container().
@@ -220,4 +231,12 @@ func getAppName() string {
 
 	fmt.Println("Application Name is : " + project.ArtifactId)
 	return project.ArtifactId
+}
+
+func checkEnv() bool {
+	_, exists := os.LookupEnv("EXECUTION_ENVIRONMENT")
+	if exists {
+		return true
+	}
+	return false
 }
