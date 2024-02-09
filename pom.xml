@@ -15,7 +15,6 @@
 	<description>Projet example d&apos;une CI/CD moderne</description>
 	<properties>
 		<java.version>17</java.version>
-		<skipOwasp>true</skipOwasp>
 		<sonar.qualitygate.wait>false</sonar.qualitygate.wait>
 		<sonar.organization>moderneci</sonar.organization>
 		<sonar.projectKey>ca.alithya.pratiques.devsecops:moderneci</sonar.projectKey>
@@ -45,24 +44,6 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-			</plugin>
-
-
-			<plugin>
-				<groupId>org.owasp</groupId>
-				<artifactId>dependency-check-maven</artifactId>
-				<version>6.5.2</version>
-				<configuration>
-					<skip>${skipOwasp}</skip>
-					<failBuildOnCVSS>7</failBuildOnCVSS> <!-- Set your desired CVSS threshold here -->
-				</configuration>
-				<executions>
-					<execution>
-					<goals>
-						<goal>check</goal>
-					</goals>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- JaCoCo plugin -->

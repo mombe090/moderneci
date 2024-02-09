@@ -86,7 +86,7 @@ func appBuilder(client *dagger.Client, mavenCache *dagger.CacheVolume, source *d
 			"sonar:sonar",
 			"-Dsonar.host.url=https://sonarcloud.io",
 			"-Dsonar.token=" + os.Getenv("SONAR_TOKEN"),
-			"-Ddependency-check.skip=true",
+			"org.owasp:dependency-check-maven:6.5.0:check",
 		})
 	} else {
 		mavenBuilder = app.WithExec([]string{"mvn", "clean", "install"})
