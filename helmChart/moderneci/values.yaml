@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: mombe090/myapp
+  repository: mombe090/moderneci
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "main_2024_01_26_20_16_50"
+  tag: "main_2024_02_15_12_05_03"
 
 imagePullSecrets: []
 nameOverride: ""

@@ -17,7 +17,7 @@ spec:
             - Deployment
       verifyImages:
       - imageReferences:
-        - "docker.io/mombe090/myapp:*"
+        - "docker.io/mombe090/moderneci:*"
         attestors:
         - count: 1
           entries:
